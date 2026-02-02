@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plan Semi 10 mai 2026 – 4 séances</title>
+  <style>
+    :root { --pad: 14px; }
+    body {
+      margin: 0; font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+      background: #f6f7f8; color: #111;
+    }
+    header {
+      position: sticky; top: 0; z-index: 10;
+      background: white; border-bottom: 1px solid #e5e7eb;
+      padding: 12px var(--pad);
+    }
+    h1 { font-size: 16px; margin: 0 0 6px 0; }
+    .sub { font-size: 12px; color: #444; line-height: 1.35; }
+    .wrap { padding: var(--pad); max-width: 980px; margin: 0 auto; }
+    .card {
+      background: white; border: 1px solid #e5e7eb; border-radius: 12px;
+      padding: 12px; margin: 10px 0; box-shadow: 0 1px 0 rgba(0,0,0,.03);
+    }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .pill {
+      display: inline-block; font-size: 12px; padding: 4px 8px; border-radius: 999px;
+      background: #eef2ff; color: #1f2a77; margin-right: 6px;
+    }
+    .phase { background: #ecfeff; color: #155e75; }
+    details summary {
+      cursor: pointer; font-weight: 700; font-size: 14px; list-style: none;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    .meta { font-size: 12px; color: #444; margin-top: 6px; line-height: 1.35; }
+    .session {
+      border-top: 1px dashed #e5e7eb; padding-top: 10px; margin-top: 10px;
+    }
+    .s-title { font-weight: 700; margin: 0 0 6px 0; }
+    label.cb { display: flex; align-items: center; gap: 10px; }
+    input[type="checkbox"] { width: 22px; height: 22px; }
+    textarea, input[type="number"] {
+      width: 100%; border: 1px solid #d1d5db; border-radius: 10px; padding: 10px;
+      font-size: 14px; box-sizing: border-box; background: #fff;
+    }
+    textarea { min-height: 64px; resize: vertical; }
+    .grid3 { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 720px) { .grid3 { grid-template-columns: 1fr 2fr 2fr; } }
+    .btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+    button {
+      border: 1px solid #d1d5db; background: #fff; border-radius: 10px;
+      padding: 10px 12px; font-size: 14px;
+    }
+    button.primary { background: #111827; color: #fff; border-color: #111827; }
+    .small { font-size: 12px; color: #444; margin-top: 8px; }
+    .footer { font-size: 12px; color: #555; margin: 18px 0 30px; line-height: 1.5; }
+    .kpi { font-size: 12px; color: #111; margin-top: 8px; }
+    .kpi strong { font-size: 13px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Plan Semi 10 mai 2026 — 4 séances (Mar/Jeu/Sam/Dim)</h1>
+  <div class="sub">
+    Objectif principal : <b>1h45 (5’00/km)</b> • Bonus : <b>1h43–1h44</b><br>
+    Allures : Endurance 5’50–6’20/km • Allure semi 5’00/km • Seuil 4’50–4’55/km • VMA 4’05–4’15/km
+  </div>
+  <div class="kpi" id="kpi"></div>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <div class="row">
+      <span class="pill">💾 Sauvegarde auto</span>
+      <span class="pill phase">🛡️ 60 ans : pas 2 séances dures d’affilée</span>
+      <span class="pill">🔁 Semaine allégée toutes les 4 semaines (-20%)</span>
+    </div>
+    <div class="btns">
+      <button class="primary" id="exportBtn">Exporter mes données (JSON)</button>
+      <button id="importBtn">Importer (JSON)</button>
+      <button id="resetBtn">Réinitialiser tout</button>
+    </div>
+    <div class="small">
+      Astuce iPhone : tu peux ajouter cette page à l’écran d’accueil via <b>Partager → Sur l’écran d’accueil</b>.
+    </div>
+    <input type="file" id="fileInput" accept="application/json" style="display:none" />
+  </div>
+
+  <div id="weeks"></div>
+
+  <div class="footer">
+    <b>Conseil pratique :</b> note le ravito testé sur tes sorties longues (gel au km 10 + eau) et garde le même protocole le jour J.<br>
+    Cette page fonctionne hors ligne et conserve tes saisies sur cet appareil/navigateur.
+  </div>
+</div>
+
+<script>
+  // --- Plan generator (16 weeks, starting Monday 09 Feb 2026) ---
+  const START = new Date("2026-02-09T00:00:00"); // Monday
+  const WEEKS = 16;
+
+  function fmtDate(d){
+    const opt = { day:"2-digit", month:"short", year:"numeric" };
+    return d.toLocaleDateString("fr-FR", opt);
+  }
+  function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+
+  function phaseForWeek(w){
+    if (w <= 6) return "Base & Moteur";
+    if (w <= 14) return "Spécifique Semi";
+    return "Affûtage";
+  }
+
+  function sessionsForWeek(w){
+    if (w <= 6) {
+      return {
+        tue: "VMA : 2 × (8 × 30s rapide / 30s lent) à 4’05–4’15/km",
+        thu: "Tempo : 3 × 8 min à 5’10–5’05/km (récup 2 min)",
+        sat: "Endurance facile : 45–60 min à 5’50–6’20/km + 6 lignes droites",
+        sun: "Sortie longue : 1h20–1h35 (facile)"
+      };
+    } else if (w <= 14) {
+      return {
+        tue: "VMA : 10 × 400 m à 4’10/km (récup 1’15)",
+        thu: "Allure semi : 2–3 × 15 min à 5’00/km (récup 3 min)",
+        sat: "Endurance facile : 50–60 min + 6 lignes droites",
+        sun: "Sortie longue : 1h30–1h45 avec blocs à 5’00/km"
+      };
+    } else {
+      return {
+        tue: "Rappel VMA : 6 × 200 m rapide (récup 1 min)",
+        thu: "Allure semi : 2 × 10 min à 5’00/km",
+        sat: "40 min très facile",
+        sun: "30–45 min facile"
+      };
+    }
+  }
+
+  // --- Persistence ---
+  const KEY = "planSemiData_v1";
+  const defaultData = { weeks: {} };
+
+  function loadData(){
+    try {
+      const raw = localStorage.getItem(KEY);
+      return raw ? JSON.parse(raw) : defaultData;
+    } catch { return defaultData; }
+  }
+  function saveData(data){
+    localStorage.setItem(KEY, JSON.stringify(data));
+    updateKPI();
+  }
+
+  const data = loadData();
+
+  function ensureWeek(week){
+    if (!data.weeks[week]) {
+      data.weeks[week] = {
+        done: { tue:false, thu:false, sat:false, sun:false },
+        sleep: "",
+        feel: "",
+        pain: ""
+      };
+    }
+  }
+
+  function updateKPI(){
+    let total = 0, done = 0;
+    for (let w=1; w<=WEEKS; w++){
+      ensureWeek(w);
+      const d = data.weeks[w].done;
+      for (const k of ["tue","thu","sat","sun"]){
+        total++; if (d[k]) done++;
+      }
+    }
+    const pct = total ? Math.round(done*100/total) : 0;
+    document.getElementById("kpi").innerHTML =
+      `Suivi : <strong>${done}/${total}</strong> séances cochées • <strong>${pct}%</strong>`;
+  }
+
+  // --- UI ---
+  const weeksEl = document.getElementById("weeks");
+
+  function render(){
+    weeksEl.innerHTML = "";
+    for (let w=1; w<=WEEKS; w++){
+      ensureWeek(w);
+
+      const weekStart = addDays(START, (w-1)*7);
+      const weekEnd = addDays(weekStart, 6);
+      const phase = phaseForWeek(w);
+      const s = sessionsForWeek(w);
+      const state = data.weeks[w];
+
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const details = document.createElement("details");
+      details.open = (w <= 2); // open first weeks by default
+
+      const summary = document.createElement("summary");
+      summary.innerHTML = `<span>Semaine ${w} — ${fmtDate(weekStart)} → ${fmtDate(weekEnd)}</span>
+                           <span class="pill phase">${phase}</span>`;
+      details.appendChild(summary);
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = "Cases à cocher + notes (sauvegarde automatique).";
+      details.appendChild(meta);
+
+      // Sessions
+      const sessions = [
+        ["tue","Mardi", s.tue],
+        ["thu","Jeudi", s.thu],
+        ["sat","Samedi", s.sat],
+        ["sun","Dimanche", s.sun],
+      ];
+
+      sessions.forEach(([key, day, text]) => {
+        const sec = document.createElement("div");
+        sec.className = "session";
+        sec.innerHTML = `
+          <div class="s-title">${day}</div>
+          <label class="cb">
+            <input type="checkbox" ${state.done[key] ? "checked" : ""} data-week="${w}" data-key="${key}">
+            <span>${text}</span>
+          </label>
+        `;
+        details.appendChild(sec);
+      });
+
+      // Notes
+      const notes = document.createElement("div");
+      notes.className = "session";
+      notes.innerHTML = `
+        <div class="s-title">Notes de la semaine</div>
+        <div class="grid3">
+          <div>
+            <div class="meta">Sommeil (heures)</div>
+            <input type="number" min="0" step="0.5" inputmode="decimal"
+              value="${state.sleep}" data-week="${w}" data-field="sleep" placeholder="ex: 7.5" />
+          </div>
+          <div>
+            <div class="meta">Sensations</div>
+            <textarea data-week="${w}" data-field="feel" placeholder="ex: bonnes jambes, séance facile...">${state.feel || ""}</textarea>
+          </div>
+          <div>
+            <div class="meta">Douleurs</div>
+            <textarea data-week="${w}" data-field="pain" placeholder="ex: légère gêne mollet droit...">${state.pain || ""}</textarea>
+          </div>
+        </div>
+      `;
+      details.appendChild(notes);
+
+      card.appendChild(details);
+      weeksEl.appendChild(card);
+    }
+
+    // Wire events
+    weeksEl.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener("change", (e) => {
+        const w = e.target.getAttribute("data-week");
+        const k = e.target.getAttribute("data-key");
+        ensureWeek(w);
+        data.weeks[w].done[k] = e.target.checked;
+        saveData(data);
+      });
+    });
+
+    weeksEl.querySelectorAll('textarea, input[type="number"]').forEach(el => {
+      el.addEventListener("input", (e) => {
+        const w = e.target.getAttribute("data-week");
+        const f = e.target.getAttribute("data-field");
+        ensureWeek(w);
+        data.weeks[w][f] = e.target.value;
+        saveData(data);
+      });
+    });
+
+    updateKPI();
+    saveData(data);
+  }
+
+  // Export / Import / Reset
+  document.getElementById("exportBtn").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "plan-semi-donnees.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById("importBtn").addEventListener("click", () => {
+    document.getElementById("fileInput").click();
+  });
+
+  document.getElementById("fileInput").addEventListener("change", async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const txt = await file.text();
+      const parsed = JSON.parse(txt);
+      if (!parsed || typeof parsed !== "object" || !parsed.weeks) throw new Error("Format invalide");
+      localStorage.setItem(KEY, JSON.stringify(parsed));
+      location.reload();
+    } catch (err) {
+      alert("Import impossible : fichier invalide.");
+    }
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    if (!confirm("Réinitialiser toutes les cases et notes ?")) return;
+    localStorage.removeItem(KEY);
+    location.reload();
+  });
+
+  render();
+</script>
+</body>
+</html>
